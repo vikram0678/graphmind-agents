@@ -7,6 +7,7 @@ import redis as redis_client
 from app.config import get_settings
 from app.database import get_db, engine, Base
 from app.models import Task  # noqa: F401
+from app.routers import tasks as tasks_router
 
 settings = get_settings()
 
@@ -29,7 +30,7 @@ app.add_middleware(
 async def startup_event():
     Base.metadata.create_all(bind=engine)
 
-
+# ── Health Check ─────
 @app.get("/health", tags=["Health"])
 def health_check(db: Session = Depends(get_db)):
     health = {
@@ -59,6 +60,7 @@ def health_check(db: Session = Depends(get_db)):
     return health
 
 
+# ── Root ───────
 @app.get("/", tags=["Root"])
 def root():
     return {
@@ -67,3 +69,6 @@ def root():
         "docs": "/docs",
         "health": "/health",
     }
+
+# ── Routers ────────
+app.include_router(tasks_router.router)
