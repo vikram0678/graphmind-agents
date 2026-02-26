@@ -1,4 +1,5 @@
 import time
+import asyncio
 from datetime import datetime, timezone
 from app.celery_app import celery_app
 from app.database import SessionLocal
@@ -8,6 +9,24 @@ from app.agents.graph import build_graph
 from app.logger import get_logger
 
 log = get_logger()
+
+def broadcast_status(task_id: str, status: str):
+    """
+    Broadcast status update to all WebSocket clients.
+    Runs async broadcast from sync Celery worker.
+    """
+    try:
+        from app.websocket_manager import ws_manager
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(ws_manager.broadcast(task_id, status))
+        loop.close()
+    except Exception as e:
+        log.warning({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "task_id": task_id,
+            "agent_name": "Orchestrator",
+            "action_details": f"WebSocket broadcast failed: {str(e)}",
+        })
 
 
 @celery_app.task(
@@ -39,6 +58,15 @@ def run_agent_workflow(self, task_id: str, prompt: str):
         # ── Step 1: Mark as RUNNING
         crud.update_task_status(db=db, task_id=task_id, status="RUNNING")
 
+        broadcast_status(task_id, "RUNNING")
+
+        log.info({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "task_id": task_id,
+            "agent_name": "Orchestrator",
+            "action_details": "Status changed to RUNNING",
+        })
+
         # ── Step 2: Build and run LangGraph ───────
         graph = build_graph()
 
@@ -65,6 +93,8 @@ def run_agent_workflow(self, task_id: str, prompt: str):
             status="AWAITING_APPROVAL",
             agent_logs=final_state.get("agent_logs", []),
         )
+        broadcast_status(task_id, "AWAITING_APPROVAL")
+
 
         log.info({
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -103,6 +133,8 @@ def run_agent_workflow(self, task_id: str, prompt: str):
                         result=final_state.get("draft_summary", ""),
                         agent_logs=final_state.get("agent_logs", []),
                     )
+                    broadcast_status(task_id, "COMPLETED")
+
 
                     delete_workspace(task_id=task_id)
 
@@ -116,6 +148,8 @@ def run_agent_workflow(self, task_id: str, prompt: str):
                     crud.update_task_status(
                         db=db, task_id=task_id, status="FAILED"
                     )
+                    broadcast_status(task_id, "FAILED")
+
                     log.warning({
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                         "task_id": task_id,
@@ -145,6 +179,7 @@ def run_agent_workflow(self, task_id: str, prompt: str):
             "action_details": f"Workflow failed with error: {str(exc)}",
         })
         crud.update_task_status(db=db, task_id=task_id, status="FAILED")
+        broadcast_status(task_id, "FAILED")
         raise self.retry(exc=exc, countdown=5)
 
     # except Exception as exc:

@@ -8,6 +8,7 @@ from app.config import get_settings
 from app.database import get_db, engine, Base
 from app.models import Task  # noqa: F401
 from app.routers import tasks as tasks_router
+from app.routers import websockets as ws_router
 
 settings = get_settings()
 
@@ -72,3 +73,4 @@ def root():
 
 # ── Routers ────────
 app.include_router(tasks_router.router)
+app.include_router(ws_router.router)
