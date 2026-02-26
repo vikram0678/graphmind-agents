@@ -1,1 +1,3 @@
-testmodel.py
+
+__pycache__/
+*.pyc
