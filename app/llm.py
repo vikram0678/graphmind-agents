@@ -6,7 +6,7 @@ settings = get_settings()
 def get_llm():
     """
     Returns correct LLM based on LLM_PROVIDER in .env
-    Supports: groq | openai | google | ollama
+    Supports: groq | openai | google | ollama | anthropic | openrouter (universal)
     """
     provider = settings.llm_provider.lower()
 
@@ -41,6 +41,27 @@ def get_llm():
             model=settings.llm_model,
             temperature=0.3,
         )
+    elif provider == "openrouter":
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            api_key=settings.llm_api_key,
+            model=settings.llm_model,
+            base_url="https://openrouter.ai/api/v1",
+            temperature=0.3,
+        )
 
+    elif provider == "universal":
+        # For any other OpenAI-compatible endpoint
+        # Set LLM_BASE_URL=https://your-endpoint/v1 in .env
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            api_key=settings.llm_api_key,
+            model=settings.llm_model,
+            base_url=settings.llm_base_url or None,
+            temperature=0.3,
+        )
     else:
-        raise ValueError(f"Unsupported LLM_PROVIDER: '{provider}'")
+        raise ValueError(
+            f"Unsupported LLM_PROVIDER: '{provider}'"
+            f"Supported: groq | openai | google | ollama | anthropic | openrouter | universal"
+        )

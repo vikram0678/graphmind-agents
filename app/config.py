@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_provider: str = "groq"
     llm_model: str = "llama-3.3-70b-versatile"
-
+    llm_base_url: str = ""
     # Database
     database_url: str = "postgresql://graphmind:graphmind_pass@db:5432/graphmind_db"
 

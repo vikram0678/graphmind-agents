@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import redis as redis_client
+import logging
 
 from app.config import get_settings
 from app.database import get_db, engine, Base
@@ -26,11 +27,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+logger = logging.getLogger("uvicorn")
 
 @app.on_event("startup")
 async def startup_event():
     Base.metadata.create_all(bind=engine)
-
+    logger.info("\n" + "="*55)
+    logger.info("🚀  GraphMind Agents is LIVE!")
+    logger.info("="*55)
+    logger.info("📖  Swagger UI  →  http://localhost:8000/docs")
+    logger.info("❤️   Health      →  http://localhost:8000/health")
+    logger.info("🔌  WebSocket   →  ws://localhost:8000/ws/tasks/{task_id}")
+    logger.info("="*55)
 # ── Health Check ─────
 @app.get("/health", tags=["Health"])
 def health_check(db: Session = Depends(get_db)):
